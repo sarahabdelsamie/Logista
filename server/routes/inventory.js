@@ -3,7 +3,7 @@ const router = express.Router();
 const {
   getInventoryItems, getInventoryItem, createInventoryItem,
   updateInventoryItem, deleteInventoryItem, stockTransaction,
-  getStockAlerts, getInventoryStats,
+  getStockAlerts, getInventoryStats, getStockTransactions,
 } = require('../controllers/inventoryController');
 const { protect } = require('../middleware/authMiddleware');
 const { roleGuard } = require('../middleware/roleMiddleware');
@@ -14,6 +14,7 @@ const adminOnly = roleGuard(['Admin']);
 // Special routes first (before /:id to avoid conflicts)
 router.get('/alerts', protect, getStockAlerts);
 router.get('/stats', protect, getInventoryStats);
+router.get('/transactions', protect, getStockTransactions);
 
 router.get('/', protect, getInventoryItems);
 router.post('/', protect, storeKeeper, createInventoryItem);

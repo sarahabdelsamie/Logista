@@ -1,6 +1,7 @@
 const InventoryItem = require('../models/InventoryItem');
 const AuditLog = require('../models/AuditLog');
 const { createAuditLog } = require('../utils/auditLog');
+const { createNotificationForRoles } = require('../utils/notificationHelper');
 
 // Helper: recalculate status
 const calcStatus = (qty, minStockLevel) => {
@@ -139,6 +140,21 @@ const stockTransaction = async (req, res) => {
       details: { sku: item.sku, type, quantity, notes, newQuantity: item.quantity },
     });
 
+    // Notify Admin & Store Keeper if the item is now Low Stock or Out of Stock
+    if (item.status === 'Out of Stock') {
+      await createNotificationForRoles(
+        ['Admin', 'Store Keeper'],
+        `Inventory alert: "${item.name}" (SKU: ${item.sku}) is now Out of Stock.`,
+        'alert'
+      );
+    } else if (item.status === 'Low Stock') {
+      await createNotificationForRoles(
+        ['Admin', 'Store Keeper'],
+        `Inventory alert: "${item.name}" (SKU: ${item.sku}) is now Low Stock (${item.quantity} remaining).`,
+        'warning'
+      );
+    }
+
     res.json({ success: true, data: item, transaction: { type, quantity, notes, performedBy: req.user.name, date: new Date() } });
   } catch (error) {
     console.error(error);
@@ -173,6 +189,43 @@ const getInventoryStats = async (req, res) => {
   }
 };
 
+// @desc    Get stock transactions history
+// @route   GET /api/inventory/transactions
+// @access  Protected
+const getStockTransactions = async (req, res) => {
+  try {
+    const { page = 1, limit = 15, type } = req.query;
+    const filter = { module: 'Inventory' };
+
+    if (type === 'issue') {
+      filter.action = 'Stock Issue';
+    } else if (type === 'restock') {
+      filter.action = 'Stock Restock';
+    } else {
+      filter.action = { $in: ['Stock Issue', 'Stock Restock'] };
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const total = await AuditLog.countDocuments(filter);
+    const logs = await AuditLog.find(filter)
+      .populate('userId', 'name email role rank')
+      .skip(skip)
+      .limit(Number(limit))
+      .sort({ timestamp: -1 });
+
+    res.json({
+      success: true,
+      data: logs,
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / Number(limit)),
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 module.exports = {
   getInventoryItems,
   getInventoryItem,
@@ -182,4 +235,5 @@ module.exports = {
   stockTransaction,
   getStockAlerts,
   getInventoryStats,
+  getStockTransactions,
 };

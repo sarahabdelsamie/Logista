@@ -25,6 +25,7 @@ app.use('/api/supply-requests', require('./routes/supplyRequests'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/audit-logs', require('./routes/auditLogs'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/workforce-rules', require('./routes/workforceRules'));
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'LOGISTA API running', env: process.env.NODE_ENV }));

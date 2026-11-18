@@ -12,10 +12,13 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import InventoryPage from './pages/InventoryPage';
 import SupplyRequestsPage from './pages/SupplyRequestsPage';
+import ApprovalsPage from './pages/ApprovalsPage';
 import ReportsPage from './pages/ReportsPage';
 
 // Admin
 import UserManagementPage from './pages/admin/UserManagementPage';
+import WorkforceRulesPage from './pages/admin/WorkforceRulesPage';
+import AuditLogPage from './pages/admin/AuditLogPage';
 
 // Meals
 import MealsPage from './pages/meals/MealsPage';
@@ -95,6 +98,12 @@ function App() {
             <ProtectedRoute><SupplyRequestsPage /></ProtectedRoute>
           } />
 
+          <Route path="/approvals" element={
+            <ProtectedRoute allowedRoles={['Admin', 'Mezz Manager']}>
+              <ApprovalsPage />
+            </ProtectedRoute>
+          } />
+
           <Route path="/reports" element={
             <ProtectedRoute allowedRoles={['Admin', 'Mezz Manager']}>
               <ReportsPage />
@@ -104,6 +113,18 @@ function App() {
           <Route path="/admin/users" element={
             <ProtectedRoute allowedRoles={['Admin']}>
               <UserManagementPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/admin/workforce-rules" element={
+            <ProtectedRoute allowedRoles={['Admin']}>
+              <WorkforceRulesPage />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/admin/audit-log" element={
+            <ProtectedRoute allowedRoles={['Admin']}>
+              <AuditLogPage />
             </ProtectedRoute>
           } />
 

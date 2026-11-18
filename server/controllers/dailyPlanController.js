@@ -2,31 +2,59 @@ const DailyPlan = require('../models/DailyPlan');
 const Meal = require('../models/Meal');
 const InventoryItem = require('../models/InventoryItem');
 const WorkforceRule = require('../models/WorkforceRule');
+const SupplyRequest = require('../models/SupplyRequest');
 const { createAuditLog } = require('../utils/auditLog');
+const { createNotificationForRoles } = require('../utils/notificationHelper');
 
-// Helper: auto-calculate ingredients & workforce for a daily plan
+// Helper: auto-calculate ingredients, stock availability & workforce for a daily plan
 const calculatePlanDetails = async (meals, studentCount) => {
   const ingredientMap = {};
   let totalCost = 0;
 
   for (const mealId of meals) {
-    const meal = await Meal.findById(mealId).populate('ingredients.itemId', 'name unit unitPrice');
+    const meal = await Meal.findById(mealId).populate('ingredients.itemId', 'name sku unit unitPrice quantity minStockLevel');
     if (!meal) continue;
 
     for (const ing of meal.ingredients) {
-      const totalQty = ing.quantityPerStudent * studentCount;
+      if (!ing.itemId) continue;
+      const totalQty = Number((ing.quantityPerStudent * studentCount).toFixed(2));
       const key = ing.itemId._id.toString();
       if (ingredientMap[key]) {
-        ingredientMap[key].totalQty += totalQty;
+        ingredientMap[key].totalQty = Number((ingredientMap[key].totalQty + totalQty).toFixed(2));
       } else {
         ingredientMap[key] = {
           itemId: ing.itemId._id,
           totalQty,
           unit: ing.unit,
           name: ing.itemId.name,
+          sku: ing.itemId.sku,
+          unitPrice: ing.itemId.unitPrice || 0,
+          currentStock: ing.itemId.quantity ?? 0,
+          minStockLevel: ing.itemId.minStockLevel ?? 0,
         };
       }
-      totalCost += ing.quantityPerStudent * ing.itemId.unitPrice * studentCount;
+      totalCost += ing.quantityPerStudent * (ing.itemId.unitPrice || 0) * studentCount;
+    }
+  }
+
+  // Calculate inventory availability check
+  let shortagesCount = 0;
+  for (const key of Object.keys(ingredientMap)) {
+    const ing = ingredientMap[key];
+    const item = await InventoryItem.findById(ing.itemId);
+    const stock = item ? item.quantity : (ing.currentStock || 0);
+    ing.currentStock = stock;
+    const diff = stock - ing.totalQty;
+    if (diff < 0) {
+      ing.shortage = Number(Math.abs(diff).toFixed(2));
+      ing.availabilityStatus = stock === 0 ? 'Out of Stock' : 'Shortage';
+      shortagesCount++;
+    } else if (item && diff < item.minStockLevel) {
+      ing.shortage = 0;
+      ing.availabilityStatus = 'Low After Use';
+    } else {
+      ing.shortage = 0;
+      ing.availabilityStatus = 'Sufficient';
     }
   }
 
@@ -44,6 +72,8 @@ const calculatePlanDetails = async (meals, studentCount) => {
     ingredientRequirements: Object.values(ingredientMap),
     workforceRequirements,
     estimatedTotalCost: Number(totalCost.toFixed(2)),
+    inventoryFeasible: shortagesCount === 0,
+    shortagesCount,
   };
 };
 
@@ -113,6 +143,15 @@ const createDailyPlan = async (req, res) => {
 
     await createAuditLog({ userId: req.user._id, action: 'Create Daily Plan', module: 'DailyPlans', details: { planName } });
 
+    // Notify Admin & Mezz Manager when a plan is submitted
+    if ((status || 'draft') === 'submitted') {
+      await createNotificationForRoles(
+        ['Admin', 'Mezz Manager'],
+        `Daily plan "${planName}" has been submitted for approval.`,
+        'info'
+      );
+    }
+
     const populated = await DailyPlan.findById(plan._id).populate('meals', 'name category').populate('createdBy', 'name');
     res.status(201).json({ success: true, data: populated });
   } catch (error) {
@@ -154,6 +193,34 @@ const updateDailyPlan = async (req, res) => {
     if (!plan) return res.status(404).json({ success: false, message: 'Plan not found' });
 
     await createAuditLog({ userId: req.user._id, action: 'Update Daily Plan', module: 'DailyPlans', details: { planId: req.params.id, status } });
+
+    // Handle status-change notifications and side-effects
+    if (status === 'submitted') {
+      await createNotificationForRoles(
+        ['Admin', 'Mezz Manager'],
+        `Daily plan "${plan.planName}" has been submitted for approval.`,
+        'info'
+      );
+    }
+
+    if (status === 'approved') {
+      // Auto-create a supply request from the plan's ingredient requirements
+      if (plan.ingredientRequirements && plan.ingredientRequirements.length > 0) {
+        await SupplyRequest.create({
+          dailyPlanId: plan._id,
+          requestedBy: req.user._id,
+          items: plan.ingredientRequirements.map((r) => ({ itemId: r.itemId, quantity: r.totalQty })),
+          status: 'pending',
+        });
+      }
+
+      // Notify all roles that the plan has been approved
+      await createNotificationForRoles(
+        ['Admin', 'Mezz Manager', 'Kitchen Supervisor', 'Store Keeper'],
+        `Daily plan "${plan.planName}" has been approved.`,
+        'info'
+      );
+    }
 
     res.json({ success: true, data: plan });
   } catch (error) {

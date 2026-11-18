@@ -65,11 +65,27 @@
   .badge-blue {
     @apply bg-blue-100 text-blue-700 px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
+  .badge-purple {
+    @apply bg-purple-100 text-purple-700 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
   .page-title {
     @apply text-2xl font-bold text-[#1E293B];
   }
   .page-subtitle {
     @apply text-sm text-[#64748B] mt-1;
+  }
+}
+
+@media print {
+  aside, header, nav, .btn-primary, .btn-secondary, button {
+    display: none !important;
+  }
+  .ml-60 {
+    margin-left: 0 !important;
+  }
+  body, main {
+    background: white !important;
+    padding: 0 !important;
   }
 }
 
