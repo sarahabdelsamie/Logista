@@ -8,11 +8,13 @@ const DailyPlan = require('./models/DailyPlan');
 const SupplyRequest = require('./models/SupplyRequest');
 const Notification = require('./models/Notification');
 const AuditLog = require('./models/AuditLog');
+const { ensureDemoProvisioned } = require('./utils/demoProvisioner');
 
 const seed = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI);
     console.log('Connected to MongoDB');
+    await ensureDemoProvisioned();
 
     // 1. Users
     const defaultAdmin = await User.findOne({ email: 'admin@logista.mil' });

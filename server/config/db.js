@@ -1,9 +1,11 @@
 const mongoose = require('mongoose');
+const { ensureDemoProvisioned } = require('../utils/demoProvisioner');
 
 let cachedPromise = null;
 
 const connectDB = async () => {
   if (mongoose.connection.readyState >= 1) {
+    ensureDemoProvisioned().catch((e) => console.error('Demo provision error:', e.message));
     return mongoose.connection;
   }
 
@@ -18,8 +20,9 @@ const connectDB = async () => {
         useUnifiedTopology: true,
         serverSelectionTimeoutMS: 10000,
       })
-      .then((conn) => {
+      .then(async (conn) => {
         console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+        ensureDemoProvisioned().catch((e) => console.error('Demo provision error:', e.message));
         return conn;
       })
       .catch((err) => {

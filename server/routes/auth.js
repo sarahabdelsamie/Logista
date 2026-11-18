@@ -1,7 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { login, forgotPassword, resetPassword, changePassword, getMe } = require('../controllers/authController');
+const { login, forgotPassword, resetPassword, changePassword, getMe, getDemoAccounts } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
+
+// GET /api/auth/demo-accounts (Public list for portfolio visitors)
+router.get('/demo-accounts', getDemoAccounts);
 
 // POST /api/auth/login
 router.post('/login', login);

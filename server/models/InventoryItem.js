@@ -18,6 +18,7 @@ const inventoryItemSchema = new mongoose.Schema(
       enum: ['In Stock', 'Low Stock', 'Out of Stock'],
       default: 'In Stock',
     },
+    isProtected: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

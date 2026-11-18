@@ -93,8 +93,17 @@ const updateInventoryItem = async (req, res) => {
 // @access  Admin
 const deleteInventoryItem = async (req, res) => {
   try {
-    const item = await InventoryItem.findByIdAndDelete(req.params.id);
+    const item = await InventoryItem.findById(req.params.id);
     if (!item) return res.status(404).json({ success: false, message: 'Item not found' });
+
+    if (item.isProtected) {
+      return res.status(403).json({
+        success: false,
+        message: 'Protected Item: Baseline demonstration items cannot be deleted. You can create and delete custom items.',
+      });
+    }
+
+    await InventoryItem.findByIdAndDelete(req.params.id);
 
     await createAuditLog({ userId: req.user._id, action: 'Delete Inventory Item', module: 'Inventory', details: { sku: item.sku } });
 

@@ -1,4 +1,5 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -46,8 +47,8 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ success: false, message: err.message || 'Internal server error' });
 });
 
-// Only listen when running standalone (not in test or Vercel serverless environment)
-if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
+// Only listen when running standalone directly from CLI (not when required as a module or in Vercel serverless)
+if (require.main === module && !process.env.VERCEL) {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => console.log(`🚀 LOGISTA Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`));
 }

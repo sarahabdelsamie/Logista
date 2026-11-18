@@ -125,6 +125,26 @@ async function runTests() {
     assert(lowStock >= 1, `Low stock alert count: ${lowStock}`);
     assert(outOfStock >= 1, `Stockout count: ${outOfStock}`);
 
+    // ----------------------------------------------------
+    // TEST SUITE 6: Public Portfolio Demo Accounts & Protection
+    // ----------------------------------------------------
+    console.log('\n▶ [Suite 6] Public Portfolio Demo Accounts');
+    const demoRoles = [
+      { email: 'demo.admin@logista.mil', role: 'Admin' },
+      { email: 'demo.manager@logista.mil', role: 'Mezz Manager' },
+      { email: 'demo.kitchen@logista.mil', role: 'Kitchen Supervisor' },
+      { email: 'demo.store@logista.mil', role: 'Store Keeper' },
+    ];
+
+    for (const d of demoRoles) {
+      const demoUser = await User.findOne({ email: d.email }).select('+password');
+      assert(!!demoUser, `Demo account ${d.email} exists`);
+      assert(demoUser?.role === d.role, `Demo account ${d.email} has role "${d.role}"`);
+      assert(demoUser?.isDemo === true, `Demo account ${d.email} is flagged as isDemo`);
+      const pwdMatch = await demoUser?.matchPassword('Demo@123');
+      assert(pwdMatch, `Demo account ${d.email} password validates with "Demo@123"`);
+    }
+
     console.log('\n====================================================');
     console.log(`  Tests Completed: ${passed} Passed, ${failed} Failed`);
     console.log('====================================================\n');

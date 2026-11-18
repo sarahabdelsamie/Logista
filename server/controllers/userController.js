@@ -60,13 +60,23 @@ const updateUser = async (req, res) => {
   try {
     const { name, email, role, rank, unit, isActive } = req.body;
 
+    const existing = await User.findById(req.params.id);
+    if (!existing) return res.status(404).json({ success: false, message: 'User not found' });
+
+    if (existing.isDemo) {
+      if (isActive === false || (email && email.toLowerCase() !== existing.email) || (role && role !== existing.role)) {
+        return res.status(403).json({
+          success: false,
+          message: 'Protected Account: Role, email, and active status cannot be altered for demo users.',
+        });
+      }
+    }
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { name, email, role, rank, unit, isActive },
       { new: true, runValidators: true }
     ).select('-password');
-
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     await createAuditLog({ userId: req.user._id, action: 'Update User', module: 'Users', details: { userId: req.params.id } });
 
@@ -86,10 +96,19 @@ const deleteUser = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Cannot delete your own account' });
     }
 
-    const user = await User.findByIdAndDelete(req.params.id);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    const targetUser = await User.findById(req.params.id);
+    if (!targetUser) return res.status(404).json({ success: false, message: 'User not found' });
 
-    await createAuditLog({ userId: req.user._id, action: 'Delete User', module: 'Users', details: { deletedUser: user.email } });
+    if (targetUser.isDemo || targetUser.email === 'admin@logista.mil') {
+      return res.status(403).json({
+        success: false,
+        message: 'Protected Account: Demo and core system administration accounts cannot be deleted.',
+      });
+    }
+
+    await User.findByIdAndDelete(req.params.id);
+
+    await createAuditLog({ userId: req.user._id, action: 'Delete User', module: 'Users', details: { deletedUser: targetUser.email } });
 
     res.json({ success: true, message: 'User deleted successfully' });
   } catch (error) {

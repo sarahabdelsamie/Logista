@@ -48,8 +48,17 @@ router.put('/:id', protect, adminOnly, async (req, res) => {
 // @access  Admin
 router.delete('/:id', protect, adminOnly, async (req, res) => {
   try {
-    const rule = await WorkforceRule.findByIdAndDelete(req.params.id);
+    const rule = await WorkforceRule.findById(req.params.id);
     if (!rule) return res.status(404).json({ success: false, message: 'Workforce rule not found' });
+
+    if (rule.isProtected) {
+      return res.status(403).json({
+        success: false,
+        message: 'Protected Rule: Baseline workforce rules cannot be deleted. You can create and delete custom rules.',
+      });
+    }
+
+    await WorkforceRule.findByIdAndDelete(req.params.id);
     res.json({ success: true, message: 'Workforce rule deleted' });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error' });

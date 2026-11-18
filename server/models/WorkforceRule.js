@@ -7,6 +7,7 @@ const workforceRuleSchema = new mongoose.Schema(
     kitchen: { type: Number, required: true },
     distribution: { type: Number, required: true },
     cleaning: { type: Number, required: true },
+    isProtected: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

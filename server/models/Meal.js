@@ -22,6 +22,7 @@ const mealSchema = new mongoose.Schema(
     ingredients: [ingredientSchema],
     estimatedCostPerStudent: { type: Number, default: 0 },
     status: { type: String, enum: ['draft', 'published'], default: 'draft' },
+    isProtected: { type: Boolean, default: false },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }

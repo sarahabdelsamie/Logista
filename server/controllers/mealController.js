@@ -114,8 +114,17 @@ const updateMeal = async (req, res) => {
 // @access  Admin
 const deleteMeal = async (req, res) => {
   try {
-    const meal = await Meal.findByIdAndDelete(req.params.id);
+    const meal = await Meal.findById(req.params.id);
     if (!meal) return res.status(404).json({ success: false, message: 'Meal not found' });
+
+    if (meal.isProtected) {
+      return res.status(403).json({
+        success: false,
+        message: 'Protected Meal: Baseline demonstration meal profiles cannot be deleted. You can create and delete custom meals.',
+      });
+    }
+
+    await Meal.findByIdAndDelete(req.params.id);
     await createAuditLog({ userId: req.user._id, action: 'Delete Meal', module: 'Meals', details: { mealId: req.params.id } });
     res.json({ success: true, message: 'Meal deleted' });
   } catch (error) {

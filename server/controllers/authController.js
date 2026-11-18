@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
 const { createAuditLog } = require('../utils/auditLog');
+const { getDemoAccountsList } = require('../utils/demoProvisioner');
 
 // Generate JWT
 const generateToken = (user) => {
@@ -48,6 +49,7 @@ const login = async (req, res) => {
         rank: user.rank,
         unit: user.unit,
         avatar: user.avatar,
+        isDemo: !!user.isDemo,
       },
     });
   } catch (error) {
@@ -67,6 +69,10 @@ const forgotPassword = async (req, res) => {
     // Always return 200 to avoid email enumeration
     if (!user) {
       return res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });
+    }
+
+    if (user.isDemo) {
+      return res.status(403).json({ success: false, message: 'Password reset is disabled for public demo accounts to prevent portfolio lockout.' });
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex');
@@ -105,6 +111,10 @@ const resetPassword = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid or expired reset token' });
     }
 
+    if (user.isDemo) {
+      return res.status(403).json({ success: false, message: 'Password reset is disabled for public demo accounts to prevent portfolio lockout.' });
+    }
+
     user.password = password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
@@ -130,6 +140,10 @@ const changePassword = async (req, res) => {
 
     if (newPassword.length < 6) {
       return res.status(400).json({ success: false, message: 'New password must be at least 6 characters' });
+    }
+
+    if (req.user?.isDemo) {
+      return res.status(403).json({ success: false, message: 'Password changes are disabled for public demo accounts to preserve portfolio access for other visitors.' });
     }
 
     const user = await User.findById(req.user._id).select('+password');
@@ -167,4 +181,16 @@ const getMe = async (req, res) => {
   }
 };
 
-module.exports = { login, forgotPassword, resetPassword, changePassword, getMe };
+// @desc    Get public portfolio demo accounts
+// @route   GET /api/auth/demo-accounts
+// @access  Public
+const getDemoAccounts = async (req, res) => {
+  try {
+    const accounts = getDemoAccountsList();
+    res.json({ success: true, data: accounts });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+module.exports = { login, forgotPassword, resetPassword, changePassword, getMe, getDemoAccounts };

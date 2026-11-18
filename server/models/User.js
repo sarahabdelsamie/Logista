@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema(
     rank: { type: String, trim: true },
     unit: { type: String, trim: true },
     isActive: { type: Boolean, default: true },
+    isDemo: { type: Boolean, default: false },
     avatar: { type: String, default: '' },
     resetPasswordToken: { type: String, select: false },
     resetPasswordExpire: { type: Date, select: false },
